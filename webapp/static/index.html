@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prospectador</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <span class="marca-icone">◎</span>
+    <h1>Prospectador</h1>
+  </div>
+  <div class="topo-info">
+    <span class="pilula" id="status-ia" title="Estado do modelo local">
+      <span class="ponto"></span><span id="status-ia-texto">verificando IA local…</span>
+    </span>
+    <span class="pilula neutra" id="status-historico">histórico: —</span>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ------------------------------------------------ painel de busca -->
+  <aside class="painel">
+    <form id="form-busca" autocomplete="off">
+      <label class="campo">
+        <span>Nicho</span>
+        <input name="nicho" id="nicho" required minlength="2" placeholder="clínicas de estética">
+      </label>
+
+      <label class="campo">
+        <span>Região</span>
+        <input name="local" id="local" required minlength="2" placeholder="Belo Horizonte, MG">
+      </label>
+
+      <label class="campo">
+        <span>Base que recebe os leads</span>
+        <select name="base_busca" id="base_busca">
+          <option value="">Nenhuma — só no Geral</option>
+        </select>
+        <small>Crie a base na aba <strong>+ Nova base</strong> ao lado e escolha aqui
+          para esta busca não misturar com outro nicho.</small>
+      </label>
+
+      <label class="campo">
+        <span>Sua oferta</span>
+        <textarea name="oferta" id="oferta" rows="3"
+          placeholder="gestão de tráfego pago e agendamento por WhatsApp"></textarea>
+        <small>Usada para pontuar os leads e escrever a abordagem.</small>
+      </label>
+
+      <div class="dupla">
+        <label class="campo">
+          <span>Máx. de leads</span>
+          <input type="number" name="max_leads" id="max_leads" value="60" min="1" max="2000">
+        </label>
+        <label class="campo">
+          <span>Buscas</span>
+          <input type="number" name="n_queries" id="n_queries" value="6" min="1" max="20">
+        </label>
+      </div>
+
+      <label class="campo">
+        <span>Filtrar por site</span>
+        <select name="filtro_site" id="filtro_site">
+          <option value="todos">Todos</option>
+          <option value="sem">Só quem NÃO tem site</option>
+          <option value="com">Só quem tem site</option>
+        </select>
+        <small>Perfil de rede social ou linktree não conta como site.
+          O filtro roda durante a coleta: a busca continua até juntar o máximo de leads pedido.</small>
+      </label>
+
+      <label class="campo">
+        <span>Público</span>
+        <select name="filtro_brasileiro" id="filtro_brasileiro">
+          <option value="todos">Qualquer empresa</option>
+          <option value="marcar">Marcar quem parece brasileiro</option>
+          <option value="so_br">Só quem parece brasileiro</option>
+        </select>
+        <small>Para prospectar <strong>fora</strong> do Brasil — dentro dele todo lead
+          teria o selo. <em>Marcar</em> anota o palpite e põe esses leads em cima;
+          <em>Só</em> descarta o resto e busca com os termos que fazem a empresa
+          brasileira aparecer. Detecta quem <strong>fala com</strong> brasileiro
+          (categoria do Maps, nome em português, telefone +55, site em português),
+          não a nacionalidade do dono.</small>
+      </label>
+
+      <label class="campo">
+        <span>Fichas por busca</span>
+        <input type="number" name="max_por_query" id="max_por_query" value="60" min="1" max="500">
+        <small>Quantas empresas abrir em cada busca. Suba quando o filtro de site
+          descartar quase tudo — é o que faz a lista final crescer.</small>
+      </label>
+
+      <fieldset class="opcoes">
+        <legend>Opções</legend>
+        <label class="switch">
+          <input type="checkbox" id="pular_conhecidos" checked>
+          <span>Não repetir leads já prospectados</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="usar_ia" checked>
+          <span>Pontuar e escrever abordagem</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="enriquecer" checked>
+          <span>Visitar sites atrás de e-mail</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="ver_navegador">
+          <span>Mostrar o navegador</span>
+        </label>
+      </fieldset>
+
+      <button type="submit" class="botao-principal" id="btn-buscar">Buscar leads</button>
+      <button type="button" class="botao-perigo oculto" id="btn-cancelar">Cancelar busca</button>
+    </form>
+
+    <section class="progresso oculto" id="progresso">
+      <div class="progresso-cabecalho">
+        <strong id="etapa-titulo">Preparando…</strong>
+        <span class="contador" id="etapa-contador"></span>
+      </div>
+      <div class="barra"><div class="barra-preenchida" id="barra"></div></div>
+      <ol class="etapas" id="etapas">
+        <li data-etapa="1">Planejar</li>
+        <li data-etapa="2">Coletar</li>
+        <li data-etapa="3">Enriquecer</li>
+        <li data-etapa="4">Qualificar</li>
+      </ol>
+      <div class="registro" id="registro"></div>
+    </section>
+  </aside>
+
+  <!-- ---------------------------------------------------- resultados -->
+  <section class="resultados">
+
+    <div class="abas-bases" id="abas-bases" role="tablist"></div>
+
+    <div class="barra-ferramentas">
+      <div class="acoes-base oculto" id="acoes-base">
+        <button type="button" class="botao-texto" id="btn-nova-fase">+ Fase</button>
+        <button type="button" class="botao-texto" id="btn-renomear-base">Renomear base</button>
+        <button type="button" class="botao-texto perigo" id="btn-apagar-base">Apagar base</button>
+      </div>
+
+      <div class="ferramentas-direita">
+        <input type="search" id="filtro-texto" placeholder="filtrar por nome ou cidade…">
+        <label class="switch compacto">
+          <input type="checkbox" id="filtro-busca">
+          <span>só desta busca</span>
+        </label>
+        <div class="menu-download">
+          <a class="botao-secundario" id="baixar-csv" href="#">CSV</a>
+          <a class="botao-secundario" id="baixar-xlsx" href="#">Excel</a>
+        </div>
+      </div>
+    </div>
+
+    <p class="resumo-lista" id="resumo-lista"></p>
+
+    <!-- quadro com colunas (base selecionada) -->
+    <div class="quadro oculto" id="quadro"></div>
+
+    <!-- lista simples (aba Geral: cada base tem fases próprias, não dá colunas) -->
+    <div class="lista" id="lista"></div>
+
+    <div class="vazio" id="vazio">
+      <p class="vazio-titulo">Nenhum lead ainda</p>
+      <p>Preencha o nicho e a região ao lado e clique em <strong>Buscar leads</strong>.</p>
+    </div>
+  </section>
+
+</main>
+
+<template id="modelo-coluna">
+  <div class="coluna" data-fase="">
+    <header class="coluna-topo">
+      <div class="coluna-identidade">
+        <h3 data-campo="nome"></h3>
+        <span class="coluna-contagem" data-campo="contagem"></span>
+      </div>
+      <div class="coluna-acoes">
+        <button type="button" class="botao-icone" data-campo="renomear" title="Renomear fase">✎</button>
+        <button type="button" class="botao-icone" data-campo="apagar" title="Apagar fase">✕</button>
+      </div>
+    </header>
+    <div class="coluna-corpo" data-campo="corpo"></div>
+  </div>
+</template>
+
+<template id="modelo-lead">
+  <article class="lead">
+    <header class="lead-topo">
+      <span class="score" data-campo="score">—</span>
+      <div class="lead-identidade">
+        <h3 data-campo="nome"></h3>
+        <p class="lead-meta" data-campo="meta"></p>
+      </div>
+    </header>
+
+    <p class="etiquetas oculto" data-campo="etiquetas"></p>
+    <p class="selo-br oculto" data-campo="selo-br"></p>
+
+    <p class="motivo" data-campo="motivo"></p>
+
+    <div class="contatos" data-campo="contatos"></div>
+
+    <details class="bloco-mensagem">
+      <summary>
+        <span>Mensagem de abordagem</span>
+        <span class="marca-edicao" data-campo="marca-edicao"></span>
+      </summary>
+      <textarea data-campo="mensagem" rows="5" spellcheck="false"></textarea>
+      <div class="mensagem-rodape">
+        <span class="salvo" data-campo="salvo"></span>
+        <button type="button" class="botao-texto" data-campo="restaurar">Restaurar original</button>
+      </div>
+    </details>
+
+    <div class="mover-base oculto" data-campo="mover">
+      <label>
+        <span>Mover para</span>
+        <select data-campo="destino"></select>
+      </label>
+    </div>
+  </article>
+</template>
+
+<div class="aviso-flutuante oculto" id="aviso-flutuante"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
