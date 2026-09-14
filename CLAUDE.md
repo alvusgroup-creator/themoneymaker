@@ -250,6 +250,13 @@ Ordenação: score desc, depois quantidade de canais de contato, depois avaliaç
 A CLI escreve na raiz; a web escreve em `exports/`. Tudo isso, mais
 `historico.json`, está no `.gitignore`.
 
+`exportar_csv()` e `exportar_xlsx()` são independentes e a web chama **só o
+formato pedido** — o CSV não pode deixar de sair porque o Excel falhou. Os dois
+passam o texto por `RE_CONTROLE`: caractere de controle vindo do scraping
+(`ESC`, ``...) faz o openpyxl levantar `IllegalCharacterError`, e um lead
+sujo derrubava a exportação inteira. Se o arquivo anterior estiver aberto no
+Excel (`PermissionError`), o servidor grava ao lado com carimbo de hora.
+
 ## Interface
 
 Sem framework, sem build, sem dependência externa: três arquivos em

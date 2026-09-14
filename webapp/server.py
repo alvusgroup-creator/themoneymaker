@@ -9,9 +9,11 @@ Chromium e disputa CPU com o Ollama.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import queue
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,7 +27,7 @@ from pydantic import BaseModel, Field
 from prospector.ai import AgenteIA
 from prospector.config import HISTORICO_PADRAO, Config
 from prospector.eventos import Evento
-from prospector.exporter import exportar
+from prospector.exporter import exportar_csv, exportar_xlsx
 from prospector.historico import Historico
 from prospector.pipeline import Cancelado, executar
 
@@ -388,10 +390,22 @@ def baixar(
 
     # Gerado na hora a partir do histórico: assim o arquivo já sai com as
     # mensagens que você editou na tela. Vai para `exports/` para não pisar no
-    # leads.csv que a CLI escreve na raiz.
+    # leads.csv que a CLI escreve na raiz. Só o formato pedido é gerado: um
+    # problema no Excel não pode impedir o CSV de sair, nem o contrário.
     nome = "".join(c for c in base if c.isalnum()) or "geral"
-    caminho_csv, caminho_xlsx = exportar(leads, f"exports/leads-{nome}")
-    caminho = caminho_csv if formato == "csv" else caminho_xlsx
+    gerar = exportar_csv if formato == "csv" else exportar_xlsx
+    destino = RAIZ.parent / "exports" / f"leads-{nome}"
+    try:
+        try:
+            caminho = gerar(leads, destino)
+        except PermissionError:
+            # No Windows, o arquivo anterior aberto no Excel bloqueia a
+            # gravação. Em vez de falhar, grava ao lado com carimbo de hora.
+            caminho = gerar(leads, f"{destino}-{time.strftime('%Y%m%d-%H%M%S')}")
+    except Exception as e:  # noqa: BLE001 - o motivo precisa chegar na tela
+        logging.exception("Falha ao exportar %s", formato)
+        raise HTTPException(500, f"Falha ao gerar o {formato}: {e}") from e
+
     return FileResponse(
         caminho,
         filename=caminho.name,
